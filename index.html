@@ -56,23 +56,29 @@
             postLogoutRedirectUri: pageUrl,
             endpoints: endpoints,
             cacheLocation: 'localStorage',
-            redirectUri: pageUrl, 
+            redirectUri: pageUrl,
             responseType: 'id_token' 
         };
 
         var authContext = new AuthenticationContext(config);
-
+        var user = authContext.getCachedUser();
+        
         if (authContext.isCallback(window.location.hash)) {
             authContext.handleWindowCallback(window.location.hash);
-            var user = authContext.getCachedUser();
+            user = authContext.getCachedUser();
             if (user) {
                 console.log("User authenticated: ", user);
                 document.getElementById("message").innerHTML = "Hello " + user.profile.name;
+            } else {
+                console.log("No user found after login.");
             }
         } else {
-            var user = authContext.getCachedUser();
             if (!user) {
+                console.log("User not authenticated, logging in...");
                 authContext.login();
+            } else {
+                console.log("User already authenticated: ", user);
+                document.getElementById("message").innerHTML = "Hello " + user.profile.name;
             }
         }
 
@@ -95,7 +101,6 @@
                 alert("End date must be no later than a week from today");
             } else {
                 document.querySelector('.progress').style.visibility = 'visible';
-                
                 sendEmails(startDate, endDate);
             }
         };
@@ -115,6 +120,12 @@
             let progressBar = document.querySelector('.progress-bar');
 
             div.innerHTML = `<h2>Fetching contacts...</h2>`;
+
+            const token = authContext.getCachedToken(tenant); // Получите ID токен
+            if (!token) {
+                console.error("ID token not available. Cannot call API.");
+                return;
+            }
 
             while (true) {
                 if (isCancelled) {
@@ -182,19 +193,17 @@
                                         Password: "1234567qT",
                                         To: result.entities[i].email,
                                         From: "dashasidorovich2006@gmail.com",
-                                        Subject: "Congratulation",
-                                        Body: "Happy Birthday!"
+                                        Subject: "Happy Birthday!",
+                                        Body: "Happy Birthday! Wishing you a wonderful day filled with joy and happiness."
                                     });
                                     y2++;
                                 } catch (error) {
+                                    console.error("Failed to send email to " + result.entities[i].email + ": " + error.message);
                                     m++;
-                                    console.error("Email sending failed: ", error);  
                                 }
-
-                                let progress = (processedContacts / y) * 100;
-                                progressBar.style.width = progress + '%';
-                                progressBar.setAttribute('aria-valuenow', progress);
-                                progressBar.innerHTML = Math.round(progress) + '%';
+                                progressBar.style.width = ((processedContacts / y) * 100) + '%';
+                                progressBar.setAttribute('aria-valuenow', (processedContacts / y) * 100);
+                                progressBar.innerHTML = Math.round((processedContacts / y) * 100) + '%';
                             }
                         }
                         pageCookie = result["@odata.nextLink"] ? result["@odata.nextLink"].split('$skiptoken=')[1] : null;
@@ -205,10 +214,9 @@
                     }
                 );
 
-                if (!pageCookie || result === null) break;
+                if (!pageCookie) break;
             }
-
-            div.innerHTML = `<h2>Processing completed successfully. ${processedContacts} contacts are processed, ${y2} congratulation e-mails were successfully sent (sending of ${m} e-mails failed).</h2>`;
+            div.innerHTML = `<h2>Processing completed. ${processedContacts} contacts are processed, ${y2} congratulation e-mails were successfully sent (sending of ${m} e-mails failed).</h2>`;
             document.querySelector('.progress').style.visibility = 'hidden';
         };
     </script>
