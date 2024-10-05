@@ -56,16 +56,24 @@
             postLogoutRedirectUri: pageUrl,
             endpoints: endpoints,
             cacheLocation: 'localStorage',
+            redirectUri: pageUrl, 
+            responseType: 'id_token' 
         };
 
         var authContext = new AuthenticationContext(config);
-        var user = authContext.getCachedUser();
-        
-        if (!user) {
-            authContext.login();
+
+        if (authContext.isCallback(window.location.hash)) {
+            authContext.handleWindowCallback(window.location.hash);
+            var user = authContext.getCachedUser();
+            if (user) {
+                console.log("User authenticated: ", user);
+                document.getElementById("message").innerHTML = "Hello " + user.profile.name;
+            }
         } else {
-            console.log("User authenticated: ", user);
-            document.getElementById("message").innerHTML = "Hello " + user.profile.name;
+            var user = authContext.getCachedUser();
+            if (!user) {
+                authContext.login();
+            }
         }
 
         let isCancelled = false;  
